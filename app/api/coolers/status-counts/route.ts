@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../../auth/[...nextauth]/route';
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "../../../lib/auth";
 import { getMockCoolerStatusCounts } from '@/lib/mockCoolers';
 
 // Check if we're in mock mode

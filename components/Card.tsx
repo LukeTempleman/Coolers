@@ -29,9 +29,9 @@ const Card = ({
                         {cooler.status}
                     </span>
                 )} 
-                {cooler.coolerType && (
+                {cooler.coolerModel && (
                     <span className='bg-white/80 dark:bg-gray-800/80 text-black dark:text-white text-xs font-semibold px-2 py-1 rounded-full'>
-                        {cooler.coolerType}
+                        {cooler.coolerModel}
                     </span>
                 )} 
             </div>

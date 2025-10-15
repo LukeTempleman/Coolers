@@ -12,7 +12,7 @@ export default withAuth(
     // Redirect authenticated users away from auth pages
     if (isAuthPage && isAuth) {
       const userRoles = (token?.roles as string[]) || [];
-      const redirectUrl = userRoles.includes('admin') ? '/admin/coolers' : '/users/dashboard';
+      const redirectUrl = userRoles.includes('admin') ? '/coolers' : '/users/dashboard';
       return NextResponse.redirect(new URL(redirectUrl, req.url));
     }
 
@@ -24,8 +24,10 @@ export default withAuth(
     }
 
     // Redirect unauthenticated users to login for protected routes
-    if (!isAuth && (req.nextUrl.pathname.startsWith('/admin') || 
-                    req.nextUrl.pathname.startsWith('/users'))) {
+    if (!isAuth && (req.nextUrl.pathname.startsWith('/admins') || 
+                    req.nextUrl.pathname.startsWith('/users') ||
+                    req.nextUrl.pathname.startsWith('/coolers') ||
+                    req.nextUrl.pathname.startsWith('/overview'))) {
       return NextResponse.redirect(new URL('/login', req.url));
     }
 
@@ -34,7 +36,7 @@ export default withAuth(
       const userRoles = (token?.roles as string[]) || [];
       
       // Admin routes
-      if (req.nextUrl.pathname.startsWith('/admin') && !userRoles.includes('admin')) {
+      if (req.nextUrl.pathname.startsWith('/admins') && !userRoles.includes('admin')) {
         return NextResponse.redirect(new URL('/users/dashboard', req.url));
       }
       
@@ -49,7 +51,7 @@ export default withAuth(
   },
   {
     callbacks: {
-      authorized: ({ token }) => true, // Let the middleware function handle authorization
+      authorized: () => true, // Let the middleware function handle authorization
     },
   }
 );

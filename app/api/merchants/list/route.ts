@@ -1,6 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../../auth/[...nextauth]/route';
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from '../../../lib/auth';
+
+// Mock merchants data
+const mockMerchants = [
+  { id: 'merch-1', name: 'Super Market Chain', status: 'active', region: 'Gauteng', coolersCount: 45 },
+  { id: 'merch-2', name: 'Corner Store Network', status: 'active', region: 'Western Cape', coolersCount: 23 },
+  { id: 'merch-3', name: 'Quick Mart', status: 'active', region: 'KwaZulu-Natal', coolersCount: 31 },
+  { id: 'merch-4', name: 'Local Grocery', status: 'active', region: 'Eastern Cape', coolersCount: 18 },
+  { id: 'merch-5', name: 'Express Shops', status: 'active', region: 'Free State', coolersCount: 12 },
+];
+
+// Check if we're in mock mode - default to true for development
+const USE_MOCK_DATA = process.env.NEXT_PUBLIC_USE_MOCK_AUTH !== "false";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,6 +26,19 @@ export async function GET(request: NextRequest) {
     
     // Get query parameters for filtering
     const status = searchParams.get('status');
+
+    // Mock mode - return mock merchants
+    if (USE_MOCK_DATA) {
+      console.log('🔧 Using mock merchants data');
+      
+      let filteredMerchants = mockMerchants;
+      
+      if (status && status !== 'all') {
+        filteredMerchants = mockMerchants.filter(merchant => merchant.status === status);
+      }
+      
+      return NextResponse.json(filteredMerchants);
+    }
 
     // Build query parameters for the backend
     const queryParams = new URLSearchParams();

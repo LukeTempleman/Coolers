@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]/route';
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "../../lib/auth";
 import { filterMockCoolers } from '@/lib/mockCoolers';
 
-// Check if we're in mock mode
-const USE_MOCK_DATA = process.env.NEXT_PUBLIC_USE_MOCK_AUTH === "true";
+// Check if we're in mock mode - default to true for development
+const USE_MOCK_DATA = process.env.NEXT_PUBLIC_USE_MOCK_AUTH !== "false";
 
 export async function GET(request: NextRequest) {
   try {

@@ -38,7 +38,7 @@ const mockBreaches = Array.from({length:5}).map((_,i)=>({
   region: saProvinces[i % saProvinces.length],
   type: ['EXIT','RADIUS','ENTER'][i%3],
   time: new Date(Date.now()-i*3600000).toISOString(),
-  severity: i%3===0?'high': i%3===1?'medium':'low'
+  severity: (i%3===0?'high': i%3===1?'medium':'low') as 'low' | 'medium' | 'high'
 }));
 const mockExceptions = {
   offline: Array.from({length:6}).map((_,i)=>({ id:`o${i}`, cooler:`Cooler-${i+10}`, region:'NA', detail:'No signal 3h', severity: i%2?'warn':'crit'})),

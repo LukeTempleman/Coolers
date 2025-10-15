@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '@/app/state/redux';
 import React, { useEffect } from 'react';
@@ -17,7 +18,7 @@ import { SiteHeader } from '@/components/site-header';
 
 const REQUIRED_FILTER_KEYS = ["merchant", "status", "coolerModel", "coordinates", "location"];
 
-export default function SearchPage() {
+function SearchPageContent() {
   const searchParams = useSearchParams();
   const dispatch = useAppDispatch();
   const isFiltersFullOpen = useAppSelector((state) => state.global.isFiltersFullOpen);
@@ -79,5 +80,13 @@ export default function SearchPage() {
         </div>
       </SidebarInset>
     </SidebarProvider>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<div>Loading search...</div>}>
+      <SearchPageContent />
+    </Suspense>
   );
 }
