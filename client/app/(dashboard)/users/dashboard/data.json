@@ -1,0 +1,92 @@
+[
+  {
+    "id": 1,
+    "header": "Cooler Inventory Overview",
+    "type": "Dashboard",
+    "status": "Done",
+    "target": "100",
+    "limit": "120",
+    "reviewer": "Eddie Lake"
+  },
+  {
+    "id": 2,
+    "header": "Active Coolers",
+    "type": "Status",
+    "status": "Done",
+    "target": "85",
+    "limit": "100",
+    "reviewer": "Jamik Tashpulatov"
+  },
+  {
+    "id": 3,
+    "header": "Coolers in Maintenance",
+    "type": "Status",
+    "status": "In Process",
+    "target": "10",
+    "limit": "15",
+    "reviewer": "Sarah Chen"
+  },
+  {
+    "id": 4,
+    "header": "Inactive Coolers",
+    "type": "Status",
+    "status": "Done",
+    "target": "5",
+    "limit": "10",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 5,
+    "header": "Temperature Alerts",
+    "type": "Alert",
+    "status": "In Process",
+    "target": "3",
+    "limit": "5",
+    "reviewer": "Raj Patel"
+  },
+  {
+    "id": 6,
+    "header": "Humidity Alerts",
+    "type": "Alert",
+    "status": "Done",
+    "target": "2",
+    "limit": "4",
+    "reviewer": "Leila Ahmadi"
+  },
+  {
+    "id": 7,
+    "header": "Recent Service Events",
+    "type": "Maintenance",
+    "status": "Done",
+    "target": "8",
+    "limit": "10",
+    "reviewer": "Thomas Wilson"
+  },
+  {
+    "id": 8,
+    "header": "Upcoming Scheduled Maintenance",
+    "type": "Maintenance",
+    "status": "In Process",
+    "target": "6",
+    "limit": "8",
+    "reviewer": "Alex Thompson"
+  },
+  {
+    "id": 9,
+    "header": "Cooler Types Distribution",
+    "type": "Analytics",
+    "status": "Done",
+    "target": "4",
+    "limit": "4",
+    "reviewer": "Sophia Martinez"
+  },
+  {
+    "id": 10,
+    "header": "Geographical Coverage",
+    "type": "Analytics",
+    "status": "Done",
+    "target": "12",
+    "limit": "15",
+    "reviewer": "Maria Garcia"
+  }
+]
