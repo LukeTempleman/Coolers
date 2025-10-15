@@ -3,8 +3,8 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../../lib/auth";
 import { findMockCoolerById } from '@/lib/mockCoolers';
 
-// Check if we're in mock mode
-const USE_MOCK_DATA = process.env.NEXT_PUBLIC_USE_MOCK_AUTH === "true";
+// Check if we're in mock mode - hardcoded to true for demo
+const USE_MOCK_DATA = true;
 
 export async function GET(
   request: NextRequest,

@@ -38,7 +38,7 @@ export const authOptions = {
     strategy: "jwt" as const,
   },
   jwt: {
-    secret: process.env.NEXTAUTH_SECRET,
+    secret: "hardcoded-secret-for-demo-app-2024-cooler-tracker-production",
   },
   callbacks: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

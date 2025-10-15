@@ -11,8 +11,8 @@ const mockMerchants = [
   { id: 'merch-5', name: 'Express Shops', status: 'active', region: 'Free State', coolersCount: 12 },
 ];
 
-// Check if we're in mock mode - default to true for development
-const USE_MOCK_DATA = process.env.NEXT_PUBLIC_USE_MOCK_AUTH !== "false";
+// Check if we're in mock mode - hardcoded to true for demo
+const USE_MOCK_DATA = true;
 
 export async function GET(request: NextRequest) {
   try {
