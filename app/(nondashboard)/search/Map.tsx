@@ -42,10 +42,11 @@ export default function Map() {
       const container = mapContainerRef.current;
       if (!container) return;
 
-      // Default to center of South Africa if no coordinates filter
-      const center = filters.coordinates || [24.5, -28.5];
-      const zoom = filters.coordinates ? 9 : 5; // Zoom in if specific location, otherwise show all of SA
-      const map = L.map(container).setView([center[1], center[0]], zoom);
+      // Force center over Johannesburg (ignoring any persisted coordinates for now)
+      const center: [number, number] = [-26.2041, 28.0473]; // [lat, lng] for Johannesburg center - always use this
+      const zoom = 10; // Fixed zoom for Johannesburg area
+      
+      const map = L.map(container).setView(center, zoom);
       mapRef.current = map;
 
       // Add OpenStreetMap tiles (free, no API key required)
@@ -55,28 +56,31 @@ export default function Map() {
       }).addTo(map);
 
       // Add markers for each cooler
-        coolers.forEach((cooler) => {
-          if (mapRef.current) {
-            const marker = L.marker([
-              cooler.location.coordinates[1],
-              cooler.location.coordinates[0]
-            ]).addTo(mapRef.current);
+      coolers.forEach((cooler) => {
+        if (mapRef.current) {
+          const marker = L.marker([
+            cooler.location.coordinates[1],
+            cooler.location.coordinates[0]
+          ]).addTo(mapRef.current);
 
-            marker.bindPopup(`
-              <div style="min-width: 200px;">
-                <a href="/search/${cooler._id}" target="_blank" style="font-weight: 600; color: #111; text-decoration: none;">
-                  ${cooler.name}
-                </a>
-                <p style="margin: 4px 0; color: #555;">
-                  ${cooler.coolerModel}
-                </p>
-                <div style="font-size: 0.85em; color: #777;">
-                  ${cooler.location.city || ''}, ${cooler.location.province || ''}
-                </div>
+          marker.bindPopup(`
+            <div style="min-width: 200px;">
+              <a href="/search/${cooler._id}" target="_blank" style="font-weight: 600; color: #111; text-decoration: none;">
+                ${cooler.name}
+              </a>
+              <p style="margin: 4px 0; color: #555;">
+                ${cooler.coolerModel}
+              </p>
+              <div style="font-size: 0.85em; color: #777;">
+                ${cooler.location.city || ''}, ${cooler.location.province || ''}
               </div>
-            `);
-          }
-        });
+              <div style="font-size: 0.85em; color: ${cooler.status === 'Active' ? '#22c55e' : '#ef4444'};">
+                Status: ${cooler.status}
+              </div>
+            </div>
+          `);
+        }
+      });
       } catch (error) {
         console.error('Error initializing map:', error);
       }

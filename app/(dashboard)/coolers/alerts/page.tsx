@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AppSidebar } from '@/components/sidebar/app-sidebar';
 import { SiteHeader } from '@/components/site-header';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { KpiCard } from '@/components/dashboard/kpi/KpiCard';
-import { Power, MapPinned, WifiOff, Activity, CheckCircle2 } from 'lucide-react';
+import { Power, MapPinned, WifiOff, Activity, CheckCircle2, X } from 'lucide-react';
 
 interface AlertItem {
   id: string;
@@ -22,13 +23,21 @@ interface AlertItem {
   meta?: Record<string, any>;
 }
 
+interface LocationMismatch {
+  id: string;
+  expected: string;
+  expectedCoords: [number, number];
+  actual: string;
+  actualCoords: [number, number];
+  distance: string;
+}
+
 const mockAlerts: AlertItem[] = [
   { id: 'a1', type: 'Geofence Breach', cooler: 'C-2041', zone: 'Downtown A', timeMinutesAgo: 5, severity: 'critical', status: 'OPEN', meta: { distanceOutsideM: 420 } },
   { id: 'a2', type: 'Power Cutoff', cooler: 'C-1182', zone: 'Retail Hub', timeMinutesAgo: 12, severity: 'warning', status: 'ACK' },
   { id: 'a3', type: 'Offline Cooler', cooler: 'C-3320', location: 'Berlin', timeMinutesAgo: 48, severity: 'warning', status: 'OPEN', meta: { lastSignal: '48m' } },
   { id: 'a4', type: 'Moved Without Power', cooler: 'C-2041', zone: 'Path Drift', timeMinutesAgo: 82, severity: 'critical', status: 'OPEN', meta: { distanceKm: 1.8 } },
   { id: 'a5', type: 'Misplaced Asset', cooler: 'C-5177', zone: 'Depot 3', timeMinutesAgo: 125, severity: 'info', status: 'RESOLVED' },
-  { id: 'a6', type: 'Idle > 7 Days', cooler: 'C-1490', zone: 'Warehouse West', timeMinutesAgo: 191, severity: 'info', status: 'OPEN', meta: { idleDays: 7 } },
 ];
 
 const severityOrder = { critical: 0, warning: 1, info: 2, resolved: 3 } as const;
@@ -37,6 +46,9 @@ export default function AlertsPage() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<AlertItem | null>(null);
+  const [selectedMismatch, setSelectedMismatch] = useState<LocationMismatch | null>(null);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const mapRef = useRef<any>(null);
 
   const filtered = mockAlerts
     .filter(a => typeFilter === 'all' || a.type === typeFilter)
@@ -56,7 +68,283 @@ export default function AlertsPage() {
     breaches24h: mockAlerts.filter(a=>a.type==='Geofence Breach').length,
     power24h: mockAlerts.filter(a=>a.type==='Power Cutoff').length,
     offline: mockAlerts.filter(a=>a.type==='Offline Cooler').length,
-    idle: mockAlerts.filter(a=>a.type.startsWith('Idle')).length,
+  };
+
+  const locationMismatches: LocationMismatch[] = [
+    { id: 'SN-000042', expected: 'Sandton Mall', expectedCoords: [28.0436, -26.1076], actual: 'Johannesburg CBD', actualCoords: [28.0473, -26.2041], distance: '12.3 km' },
+    { id: 'SN-000078', expected: 'Cape Town Waterfront', expectedCoords: [18.4241, -33.9249], actual: 'Stellenbosch', actualCoords: [18.8667, -33.9321], distance: '45.2 km' },
+    { id: 'SN-000134', expected: 'Durban Marina', expectedCoords: [31.0218, -29.8587], actual: 'Pietermaritzburg', actualCoords: [30.3753, -29.6009], distance: '68.5 km' },
+    { id: 'SN-000201', expected: 'Pretoria Central', expectedCoords: [28.1881, -25.7479], actual: 'Soweto', actualCoords: [27.8546, -26.2678], distance: '61.4 km' },
+    { id: 'SN-000089', expected: 'Port Elizabeth Baywest', expectedCoords: [25.6022, -33.9608], actual: 'East London', actualCoords: [27.9116, -33.0153], distance: '284.7 km' },
+    { id: 'SN-000156', expected: 'Bloemfontein Central', expectedCoords: [26.2023, -29.0852], actual: 'Kimberley', actualCoords: [24.7631, -28.7282], distance: '152.3 km' },
+    { id: 'SN-000187', expected: 'Polokwane Mall', expectedCoords: [29.4487, -23.9045], actual: 'Nelspruit', actualCoords: [30.9702, -25.4753], distance: '201.4 km' },
+    { id: 'SN-000213', expected: 'Mahikeng City Centre', expectedCoords: [25.6447, -25.8601], actual: 'Johannesburg', actualCoords: [28.0473, -26.2041], distance: '247.8 km' },
+  ];
+
+  const handleMismatchClick = (mismatch: LocationMismatch) => {
+    setSelectedMismatch(mismatch);
+    setIsMapModalOpen(true);
+  };
+
+  // Map Modal Component
+  const MismatchMapModal = () => {
+    const mapContainerRef = useRef<HTMLDivElement>(null);
+    const [mapLoaded, setMapLoaded] = useState(false);
+
+    useEffect(() => {
+      if (!isMapModalOpen || !selectedMismatch) {
+        setMapLoaded(false);
+        return;
+      }
+
+      // Wait for modal to be fully rendered
+      const timer = setTimeout(() => {
+        setMapLoaded(true);
+      }, 300);
+
+      return () => {
+        clearTimeout(timer);
+        setMapLoaded(false);
+      };
+    }, [isMapModalOpen, selectedMismatch]);
+
+    useEffect(() => {
+      if (!mapLoaded || !mapContainerRef.current || !selectedMismatch) {
+        console.log('⏭️ Skipping map init:', { mapLoaded, hasContainer: !!mapContainerRef.current, hasSelection: !!selectedMismatch });
+        return;
+      }
+
+      let map: any = null;
+
+      const initMap = async () => {
+        try {
+          console.log('🗺️ Starting map initialization...');
+          
+          // Dynamically import Leaflet
+          const L = (await import('leaflet')).default;
+          console.log('✅ Leaflet loaded');
+          
+          // Ensure CSS is loaded
+          if (!document.querySelector('link[href*="leaflet.css"]')) {
+            console.log('📄 Loading Leaflet CSS...');
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+            document.head.appendChild(link);
+            
+            // Wait for CSS to load
+            await new Promise((resolve) => {
+              link.onload = () => {
+                console.log('✅ Leaflet CSS loaded');
+                resolve(undefined);
+              };
+              setTimeout(() => {
+                console.log('⚠️ CSS load timeout');
+                resolve(undefined);
+              }, 1000);
+            });
+          } else {
+            console.log('✅ Leaflet CSS already loaded');
+          }
+
+          // Fix default marker icon issue with webpack
+          const DefaultIcon = L.Icon.Default.prototype as any;
+          delete DefaultIcon._getIconUrl;
+          L.Icon.Default.mergeOptions({
+            iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+            iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+            shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+          });
+
+          const container = mapContainerRef.current;
+          if (!container) {
+            console.error('❌ No container found');
+            return;
+          }
+
+          console.log('📦 Container dimensions:', container.offsetWidth, 'x', container.offsetHeight);
+
+          // Clear any existing map
+          container.innerHTML = '';
+
+          // Calculate center point between expected and actual locations
+          const expectedCoords = selectedMismatch.expectedCoords;
+          const actualCoords = selectedMismatch.actualCoords;
+          const centerLat = (expectedCoords[1] + actualCoords[1]) / 2;
+          const centerLng = (expectedCoords[0] + actualCoords[0]) / 2;
+
+          console.log('📍 Creating map at center:', [centerLat, centerLng]);
+
+          const map = L.map(container, {
+            preferCanvas: false,
+            attributionControl: true,
+            zoomControl: true
+          }).setView([centerLat, centerLng], 10);
+          
+          console.log('✅ Map created:', map);
+          mapRef.current = map;
+
+          // Add OpenStreetMap tiles
+          console.log('🗺️ Adding tile layer...');
+          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 18,
+          }).addTo(map);
+          console.log('✅ Tile layer added');
+
+          // Force map to resize after a short delay
+          setTimeout(() => {
+            if (mapRef.current) {
+              console.log('🔄 Invalidating map size');
+              mapRef.current.invalidateSize();
+            }
+          }, 100);
+
+          // Create custom icons using built-in Leaflet markers with custom colors
+          const expectedIcon = L.icon({
+            iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+            iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+            shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41],
+            className: 'expected-marker'
+          });
+
+          const actualIcon = L.icon({
+            iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+            iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+            shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41],
+            className: 'actual-marker'
+          });
+
+          // Add expected location marker (we'll style it green with CSS)
+          const expectedMarker = L.marker([expectedCoords[1], expectedCoords[0]], {
+            icon: expectedIcon
+          }).addTo(map);
+          expectedMarker.bindPopup(`
+            <div style="text-align: center;">
+              <strong style="color: #10b981;">Expected Location</strong><br/>
+              <strong>${selectedMismatch.expected}</strong><br/>
+              <small>Cooler: ${selectedMismatch.id}</small>
+            </div>
+          `);
+
+          // Add actual location marker (we'll style it red with CSS)
+          const actualMarker = L.marker([actualCoords[1], actualCoords[0]], {
+            icon: actualIcon
+          }).addTo(map);
+          actualMarker.bindPopup(`
+            <div style="text-align: center;">
+              <strong style="color: #ef4444;">Actual Location</strong><br/>
+              <strong>${selectedMismatch.actual}</strong><br/>
+              <small>Distance: ${selectedMismatch.distance}</small>
+            </div>
+          `);
+
+          // Add a line connecting the two points
+          const polyline = L.polyline([
+            [expectedCoords[1], expectedCoords[0]],
+            [actualCoords[1], actualCoords[0]]
+          ], {
+            color: '#fbbf24',
+            weight: 3,
+            opacity: 0.8,
+            dashArray: '10, 10'
+          }).addTo(map);
+
+          // Fit the map to show both markers with padding
+          const group = L.featureGroup([expectedMarker, actualMarker, polyline]);
+          map.fitBounds(group.getBounds(), { 
+            padding: [50, 50],
+            maxZoom: 15
+          });
+
+          // Add custom styles for marker colors
+          const style = document.createElement('style');
+          style.textContent = `
+            .expected-marker {
+              filter: hue-rotate(120deg) saturate(1.5) brightness(1.2);
+            }
+            .actual-marker {
+              filter: hue-rotate(0deg) saturate(1.5) brightness(1.2);
+            }
+          `;
+          document.head.appendChild(style);
+
+        } catch (error) {
+          console.error('Error initializing map:', error);
+        }
+      };
+
+      initMap();
+      
+      return () => {
+        if (mapRef.current) {
+          mapRef.current.remove();
+          mapRef.current = null;
+        }
+      };
+    }, [mapLoaded, selectedMismatch]);
+
+    return (
+      <Dialog open={isMapModalOpen} onOpenChange={setIsMapModalOpen}>
+        <DialogContent className="max-w-5xl w-[95vw] h-[85vh] p-0">
+          <DialogHeader className="p-6 pb-2">
+            <DialogTitle className="flex items-center justify-between">
+              <div>
+                <span>Location Mismatch: {selectedMismatch?.id}</span>
+                <p className="text-sm font-normal text-muted-foreground mt-1">
+                  Distance: {selectedMismatch?.distance}
+                </p>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setIsMapModalOpen(false)}
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 p-6 pt-2">
+            <div className="mb-4 flex gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow"></div>
+                <span>Expected: {selectedMismatch?.expected}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-red-500 rounded-full border-2 border-white shadow"></div>
+                <span>Actual: {selectedMismatch?.actual}</span>
+              </div>
+            </div>
+            <div 
+              ref={mapContainerRef} 
+              className="w-full border rounded-lg bg-gray-100 relative"
+              style={{ 
+                height: '450px',
+                minHeight: '450px'
+              }}
+            >
+              {!mapLoaded && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-2"></div>
+                    <p className="text-sm text-muted-foreground">Loading map...</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
   };
 
   return (
@@ -122,7 +410,6 @@ export default function AlertsPage() {
             <KpiCard title="Breaches 24h" value={kpis.breaches24h} icon={<MapPinned className="h-4 w-4" />} />
             <KpiCard title="Power Cuts" value={kpis.power24h} icon={<Power className="h-4 w-4" />} />
             <KpiCard title="Offline" value={kpis.offline} icon={<WifiOff className="h-4 w-4" />} />
-            <KpiCard title="Idle > Threshold" value={kpis.idle} icon={<Activity className="h-4 w-4" />} />
           </div>
 
           {/* Location Mismatch Section */}
@@ -148,17 +435,12 @@ export default function AlertsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {[
-                      { id: 'SN-000042', expected: 'Sandton Mall', expectedCoords: [28.0436, -26.1076], actual: 'Johannesburg CBD', actualCoords: [28.0473, -26.2041], distance: '12.3 km' },
-                      { id: 'SN-000078', expected: 'Cape Town Waterfront', expectedCoords: [18.4241, -33.9249], actual: 'Stellenbosch', actualCoords: [18.8667, -33.9321], distance: '45.2 km' },
-                      { id: 'SN-000134', expected: 'Durban Marina', expectedCoords: [31.0218, -29.8587], actual: 'Pietermaritzburg', actualCoords: [30.3753, -29.6009], distance: '68.5 km' },
-                      { id: 'SN-000201', expected: 'Pretoria Central', expectedCoords: [28.1881, -25.7479], actual: 'Soweto', actualCoords: [27.8546, -26.2678], distance: '61.4 km' },
-                      { id: 'SN-000089', expected: 'Port Elizabeth Baywest', expectedCoords: [25.6022, -33.9608], actual: 'East London', actualCoords: [27.9116, -33.0153], distance: '284.7 km' },
-                      { id: 'SN-000156', expected: 'Bloemfontein Central', expectedCoords: [26.2023, -29.0852], actual: 'Kimberley', actualCoords: [24.7631, -28.7282], distance: '152.3 km' },
-                      { id: 'SN-000187', expected: 'Polokwane Mall', expectedCoords: [29.4487, -23.9045], actual: 'Nelspruit', actualCoords: [30.9702, -25.4753], distance: '201.4 km' },
-                      { id: 'SN-000213', expected: 'Mahikeng City Centre', expectedCoords: [25.6447, -25.8601], actual: 'Johannesburg', actualCoords: [28.0473, -26.2041], distance: '247.8 km' },
-                    ].map((mismatch) => (
-                      <tr key={mismatch.id} className="hover:bg-muted/50 cursor-pointer">
+                    {locationMismatches.map((mismatch) => (
+                      <tr 
+                        key={mismatch.id} 
+                        className="hover:bg-muted/50 cursor-pointer transition-colors"
+                        onClick={() => handleMismatchClick(mismatch)}
+                      >
                         <td className="py-2 px-3 font-mono font-medium">{mismatch.id}</td>
                         <td className="py-2 px-3 text-green-700 dark:text-green-400">{mismatch.expected}</td>
                         <td className="py-2 px-3 text-red-700 dark:text-red-400">{mismatch.actual}</td>
@@ -325,6 +607,7 @@ export default function AlertsPage() {
           </div>
         </div>
       </SidebarInset>
+      <MismatchMapModal />
     </SidebarProvider>
   );
 }

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useAppSelector } from '@/app/state/redux';
 import { usePathname, useRouter } from 'next/navigation';
-import React, { useState, useEffect} from 'react';
+import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { FiltersState, setFilters, setViewMode, toggleFiltersFullOpen } from '@/app/state';
 // import { debounce } from 'lodash';
@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Filter, Grid, List, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CoolerModelIcons } from '@/app/lib/constants';
 
 const FiltersBar = () => {
     const dispatch = useDispatch();
@@ -22,71 +21,6 @@ const FiltersBar = () => {
 
     // State for search input
     const [searchInput, setSearchInput] = useState(filters.location);
-
-    // State for merchants and merchant-specific cooler models
-    const [merchants, setMerchants] = useState<{ _id: string; name: string }[]>([]);
-    const [coolerModels, setCoolerModels] = useState<string[]>([]);
-
-    // Fetch all merchants on mount
-    useEffect(() => {
-    fetch('/api/merchants/list?status=active')
-      .then(res => {
-        console.log('Merchants response status:', res.status);
-        if (!res.ok) {
-          // Log error and return empty array
-          console.error(`HTTP error! status: ${res.status}`);
-          return { data: [] };
-        }
-        return res.json();
-      })
-      .then(data => {
-        console.log('Merchants response:', data);
-        setMerchants(data.data || []);
-      })
-      .catch(err => {
-        console.error('Error fetching merchants:', err);
-        setMerchants([]);
-      });
-    }, []);
-
-    // Fetch cooler models for selected merchant
-    useEffect(() => {
-      const fetchCoolerModels = async () => {
-        try {
-          let url = '/api/coolers';
-          
-          // If a specific merchant is selected, filter by merchant
-          if (filters.merchant && filters.merchant !== 'any') {
-            url += `?merchant=${filters.merchant}`;
-            console.log('Fetching coolers for merchant:', filters.merchant);
-          } else {
-            console.log('Fetching all coolers for model extraction');
-          }
-          
-          const res = await fetch(url);
-          
-          console.log('Coolers response status:', res.status);
-          
-          if (!res.ok) {
-            throw new Error(`Failed to fetch coolers: ${res.status}`);
-          }
-          
-          const data = await res.json();
-          console.log('Coolers response:', data);
-          
-          // Get unique cooler models
-          const coolersArray = data.data || data || [];
-          const models = Array.from(new Set(coolersArray.map((c: any) => c.coolerModel))) as string[];
-          console.log('Extracted cooler models:', models);
-          setCoolerModels(models);
-        } catch (error) {
-          console.error('Error fetching coolers:', error);
-          setCoolerModels([]);
-        }
-      };
-      
-      fetchCoolerModels();
-    }, [filters.merchant]);
 
   const updateURL = (newFilters: FiltersState) => {
     const cleanFilters = cleanParams(newFilters);
@@ -154,10 +88,6 @@ const FiltersBar = () => {
           console.error("Error search location:", err);
         }
       };
-    useEffect(() => {
-      console.log('filters.merchant changed:', filters.merchant);
-    }, [filters.merchant]);
-    console.log('Merchant filter value:', filters.merchant);
     return (
       <div className='flex justify-between items-center w-full py-5 transition-colors'>
         <div className='flex flex-wrap justify-between items-center gap-4 p-2'>
@@ -187,23 +117,6 @@ const FiltersBar = () => {
               <Search className="w-4 h-4" />
             </Button>
           </div>
-          {/* Merchant Filter */}
-          <Select
-            value={filters.merchant ?? "any"}
-            onValueChange={(value) => handleFilterChange("merchant", value)}
-          >
-            <SelectTrigger className="w-34 rounded-xl border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 hover:border-blue-500 dark:hover:border-blue-400 focus:border-blue-500 dark:focus:border-blue-400">
-              <SelectValue placeholder="Merchant" />
-            </SelectTrigger>
-            <SelectContent className="text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
-              <SelectItem value="any">Any Merchant</SelectItem>
-              {merchants.map(merchant => (
-                <SelectItem key={merchant._id} value={merchant._id}>
-                  {merchant.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
           {/* Status Filter */}
           <Select
             value={filters.status || ""}
@@ -217,38 +130,6 @@ const FiltersBar = () => {
               <SelectItem value="active">Active</SelectItem>
               <SelectItem value="inactive">Inactive</SelectItem>
               <SelectItem value="maintenance">Maintenance</SelectItem>
-            </SelectContent>
-          </Select>
-          {/* Cooler Type Filter (filtered by merchant) */}
-          <Select
-            value={filters.coolerModel || "any"}
-            onValueChange={(value) => handleFilterChange("coolerModel", value)}
-          >
-            <SelectTrigger className="w-34 rounded-xl border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 hover:border-blue-500 dark:hover:border-blue-400 focus:border-blue-500 dark:focus:border-blue-400">
-              <SelectValue placeholder="Cooler Type" />
-            </SelectTrigger>
-            <SelectContent className="text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
-              <SelectItem value="any">Any Cooler Model</SelectItem>
-              {coolerModels.length > 0
-                ? coolerModels.map((type) => {
-                    const Icon = (CoolerModelIcons as Record<string, React.ComponentType<any>>)[type] || (() => <span className="w-4 h-4 mr-2" />);
-                    return (
-                      <SelectItem key={type} value={type}>
-                        <div className="flex items-center">
-                          <Icon className="w-4 h-4 mr-2" />
-                          <span>{type}</span>
-                        </div>
-                      </SelectItem>
-                    );
-                  })
-                : Object.entries(CoolerModelIcons).map(([type, Icon]) => (
-                    <SelectItem key={type} value={type}>
-                      <div className="flex items-center">
-                        <Icon className="w-4 h-4 mr-2" />
-                        <span>{type}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
             </SelectContent>
           </Select>
           {/* View Mode */}

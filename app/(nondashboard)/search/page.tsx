@@ -16,7 +16,7 @@ import { AppSidebar } from '@/components/sidebar/app-sidebar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { SiteHeader } from '@/components/site-header';
 
-const REQUIRED_FILTER_KEYS = ["merchant", "status", "coolerModel", "coordinates", "location"];
+const REQUIRED_FILTER_KEYS = ["status", "coordinates", "location"];
 
 function SearchPageContent() {
   const searchParams = useSearchParams();

@@ -106,7 +106,22 @@ export const filterMockCoolers = (filters: {
   let filtered = [...mockCoolers];
   
   if (filters.status) {
-    filtered = filtered.filter(c => c.status === filters.status);
+    const statusFilter = filters.status.toLowerCase();
+    
+    if (statusFilter === 'active') {
+      // Show only Active coolers
+      filtered = filtered.filter(c => c.status === 'Active');
+    } else if (statusFilter === 'inactive') {
+      // Show all non-Active coolers (Alert, Maintenance, Idle, Decommissioned)
+      filtered = filtered.filter(c => c.status !== 'Active');
+    } else if (statusFilter === 'maintenance') {
+      // Show only Maintenance coolers
+      filtered = filtered.filter(c => c.status === 'Maintenance');
+    } else {
+      // Direct match for other statuses (case insensitive)
+      const targetStatus = statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1);
+      filtered = filtered.filter(c => c.status === targetStatus);
+    }
   }
   
   if (filters.search) {
