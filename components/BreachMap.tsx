@@ -32,11 +32,21 @@ export default function BreachMap({
       // Dynamically import Leaflet
       const L = (await import("leaflet")).default;
       
-      // Import CSS dynamically
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(link);
+      // Check if CSS is already loaded
+      const existingLink = document.querySelector('link[href*="leaflet.css"]');
+      if (!existingLink) {
+        // Import CSS dynamically
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(link);
+        
+        // Wait for CSS to load
+        await new Promise((resolve) => {
+          link.onload = resolve;
+          setTimeout(resolve, 1000); // fallback timeout
+        });
+      }
 
       // Fix default marker icon issue with webpack
       const DefaultIcon = L.Icon.Default.prototype as unknown as {
@@ -53,6 +63,7 @@ export default function BreachMap({
       // Create map
       const container = mapContainerRef.current;
       if (!container) return;
+      
       mapRef.current = L.map(container).setView([center[1], center[0]], zoom);
 
       // Add OpenStreetMap tiles (free, no API key required)
@@ -63,14 +74,14 @@ export default function BreachMap({
 
       // Create custom icons for expected and breach locations
       const expectedIcon = L.divIcon({
-        html: '<div style="background-color: #10b981; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>',
+        html: '<div style="background-color: #10b981; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>',
         className: '',
         iconSize: [24, 24],
         iconAnchor: [12, 12],
       });
 
       const breachIcon = L.divIcon({
-        html: '<div style="background-color: #ef4444; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>',
+        html: '<div style="background-color: #ef4444; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>',
         className: '',
         iconSize: [24, 24],
         iconAnchor: [12, 12],
@@ -93,6 +104,13 @@ export default function BreachMap({
         const bounds = L.latLngBounds(coolers.map(c => [c.coordinates[1], c.coordinates[0]] as [number, number]));
         mapRef.current.fitBounds(bounds, { padding: [50, 50] });
       }
+      
+      // Force map to resize after a short delay to ensure proper rendering
+      setTimeout(() => {
+        if (mapRef.current) {
+          mapRef.current.invalidateSize();
+        }
+      }, 100);
     };
 
     initMap();
@@ -105,5 +123,5 @@ export default function BreachMap({
     };
   }, [center, zoom, coolers]);
 
-  return <div ref={mapContainerRef} style={{ width: "100%", height: "100%", borderRadius: "8px", minHeight: "500px" }} />;
+  return <div ref={mapContainerRef} className="w-full h-full rounded-lg" style={{ minHeight: "400px" }} />;
 }

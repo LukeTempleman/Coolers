@@ -8,14 +8,12 @@ import {
   Fence,
   FileCodeIcon,
   FileTextIcon,
-  FolderIcon,
   HelpCircleIcon,
   LayoutDashboardIcon,
   SearchIcon,
   SettingsIcon,
 } from "lucide-react"
 
-import { NavDocuments } from "@/components/sidebar/nav-documents"
 import { NavMain } from "@/components/sidebar/nav-main"
 import { NavSecondary } from "@/components/sidebar/nav-secondary"
 import { NavUser } from "@/components/sidebar/nav-user"
@@ -123,23 +121,7 @@ const data = {
       icon: HelpCircleIcon,
     },
   ],
-  documents: [
-    {
-      name: "Operational Reports",
-      url: "/operational-reports",
-      icon: FolderIcon,
-    },
-    {
-      name: "Asset Management",
-      url: "/asset-management",
-      icon: FolderIcon,
-    },
-    {
-      name: "Compliance",
-      url: "/compliance",
-      icon: FolderIcon,
-    },
-  ],
+  documents: [],
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -161,7 +143,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

@@ -70,8 +70,8 @@ const LoginPage = () => {
       if (result?.error) {
         setError('Invalid credentials. Please check your email and password.');
       } else if (result?.ok) {
-        // Always redirect to overview page
-        router.push('/overview');
+        // Redirect to users dashboard
+        router.push('/users/dashboard');
       }
     } catch (err) {
       console.error('Login error:', err);
