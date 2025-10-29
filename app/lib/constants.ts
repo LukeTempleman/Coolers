@@ -30,6 +30,7 @@ import {
 
 export enum CoolerStatusEnum {
   Active = "Active",
+  Assigned = "Assigned",
   Maintenance = "Maintenance",
   Idle = "Idle",
   Decommissioned = "Decommissioned",
@@ -38,6 +39,7 @@ export enum CoolerStatusEnum {
 
 export const CoolerStatusIcons: Record<CoolerStatusEnum, LucideIcon> = {
   Active: Activity,
+  Assigned: User,
   Maintenance: Settings,
   Idle: Clock,
   Decommissioned: AlertTriangle,
@@ -77,17 +79,47 @@ export const EventTypeIcons: Record<EventTypeEnum, LucideIcon> = {
 };
 
 export enum CoolerModelEnum {
-  Standard = "Standard",
-  Premium = "Premium",
-  Ultra = "Ultra",
-  Compact = "Compact",
+  // Single Door Models
+  SingleDoorStandard = "Single Door Standard",
+  SingleDoorPremium = "Single Door Premium",
+  SingleDoorEco = "Single Door Eco",
+  
+  // Double Door Models
+  DoubleDoorCommercial = "Double Door Commercial",
+  DoubleDoorPremium = "Double Door Premium",
+  DoubleDoorIndustrial = "Double Door Industrial",
+  
+  // Compact Models
+  CompactBeverage = "Compact Beverage Cooler",
+  CompactDisplay = "Compact Display Unit",
+  CompactMini = "Compact Mini Fridge",
+  
+  // Standard Models
+  StandardRefrigeration = "Standard Refrigeration Unit",
+  StandardCommercial = "Standard Commercial Cooler",
+  StandardDisplay = "Standard Display Cooler",
 }
 
 export const CoolerModelIcons = {
-  'Standard': Package,
-  'Premium': Zap, 
-  'Ultra': Snowflake,
-  'Compact': Box
+  // Single Door Models
+  'Single Door Standard': Package,
+  'Single Door Premium': Zap,
+  'Single Door Eco': Snowflake,
+  
+  // Double Door Models
+  'Double Door Commercial': Building,
+  'Double Door Premium': Zap,
+  'Double Door Industrial': Package,
+  
+  // Compact Models
+  'Compact Beverage Cooler': Box,
+  'Compact Display Unit': Box,
+  'Compact Mini Fridge': Box,
+  
+  // Standard Models
+  'Standard Refrigeration Unit': Package,
+  'Standard Commercial Cooler': Building,
+  'Standard Display Cooler': Package,
 } as const;
 
 

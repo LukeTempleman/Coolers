@@ -9,7 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { KpiCard } from '@/components/dashboard/kpi/KpiCard';
-import { Power, MapPinned, WifiOff, Activity, CheckCircle2, X } from 'lucide-react';
+import { Power, MapPinned, WifiOff, Activity, CheckCircle2, X, Wrench, Calendar, AlertTriangle, Clock } from 'lucide-react';
+import { mockCoolers } from '@/app/lib/mockCoolers';
+import { CoolerStatusEnum } from '@/app/lib/constants';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 interface AlertItem {
   id: string;
@@ -32,6 +36,16 @@ interface LocationMismatch {
   distance: string;
 }
 
+interface MaintenanceSchedule {
+  coolerId: string;
+  coolerModel: string;
+  scheduledDate: string;
+  technician: string;
+  priority: string;
+  description: string;
+  estimatedDuration: string;
+}
+
 const mockAlerts: AlertItem[] = [
   { id: 'a1', type: 'Geofence Breach', cooler: 'C-2041', zone: 'Downtown A', timeMinutesAgo: 5, severity: 'critical', status: 'OPEN', meta: { distanceOutsideM: 420 } },
   { id: 'a2', type: 'Power Cutoff', cooler: 'C-1182', zone: 'Retail Hub', timeMinutesAgo: 12, severity: 'warning', status: 'ACK' },
@@ -48,6 +62,83 @@ export default function AlertsPage() {
   const [selected, setSelected] = useState<AlertItem | null>(null);
   const [selectedMismatch, setSelectedMismatch] = useState<LocationMismatch | null>(null);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [selectedMaintenanceCooler, setSelectedMaintenanceCooler] = useState<any>(null);
+  const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
+  const [showAllMaintenance, setShowAllMaintenance] = useState(false);
+  const [scheduledMaintenance, setScheduledMaintenance] = useState<any[]>([
+    {
+      id: 1,
+      cooler: { 
+        _id: 'SN-000001', 
+        coolerModel: 'Double Door Premium', 
+        location: { city: 'Johannesburg', province: 'Gauteng' } 
+      },
+      scheduledDate: '2025-10-30T09:00',
+      technician: 'john-smith',
+      priority: 'High',
+      description: 'Routine preventive maintenance and filter replacement',
+      estimatedDuration: '4'
+    },
+    {
+      id: 2,
+      cooler: { 
+        _id: 'SN-000015', 
+        coolerModel: 'Single Door Compact', 
+        location: { city: 'Cape Town', province: 'Western Cape' } 
+      },
+      scheduledDate: '2025-10-29T14:30',
+      technician: 'sarah-johnson',
+      priority: 'Critical',
+      description: 'Emergency repair - temperature control malfunction',
+      estimatedDuration: '8'
+    },
+    {
+      id: 3,
+      cooler: { 
+        _id: 'SN-000089', 
+        coolerModel: 'Standard Refrigeration Unit', 
+        location: { city: 'Durban', province: 'KwaZulu-Natal' } 
+      },
+      scheduledDate: '2025-11-01T11:00',
+      technician: 'mike-davis',
+      priority: 'Medium',
+      description: 'Quarterly inspection and calibration',
+      estimatedDuration: '2'
+    },
+    {
+      id: 4,
+      cooler: { 
+        _id: 'SN-000156', 
+        coolerModel: 'Double Door Commercial', 
+        location: { city: 'Pretoria', province: 'Gauteng' } 
+      },
+      scheduledDate: '2025-11-02T08:00',
+      technician: 'lisa-chen',
+      priority: 'Medium',
+      description: 'Door seal replacement and cleaning',
+      estimatedDuration: '2'
+    },
+    {
+      id: 5,
+      cooler: { 
+        _id: 'SN-000203', 
+        coolerModel: 'Compact Beverage Cooler', 
+        location: { city: 'Bloemfontein', province: 'Free State' } 
+      },
+      scheduledDate: '2025-11-05T13:15',
+      technician: 'john-smith',
+      priority: 'Low',
+      description: 'Standard maintenance check',
+      estimatedDuration: '1'
+    }
+  ]);
+  const [maintenanceForm, setMaintenanceForm] = useState({
+    scheduledDate: '',
+    technician: '',
+    priority: 'Medium',
+    description: '',
+    estimatedDuration: '2'
+  });
   const mapRef = useRef<any>(null);
 
   const filtered = mockAlerts
@@ -531,6 +622,298 @@ export default function AlertsPage() {
             </div>
           </div>
 
+          {/* Maintenance Required Section */}
+          <div className="rounded-lg border bg-background p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold">Units Requiring Maintenance</h2>
+                <p className="text-sm text-muted-foreground">Coolers scheduled for or overdue for maintenance service</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {/* Maintenance KPI Cards */}
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+                <KpiCard 
+                  title="Maintenance Required" 
+                  value={mockCoolers.filter(c => c.status === CoolerStatusEnum.Maintenance).length}
+                  icon={<Wrench className="h-4 w-4" />}
+                  className="border-orange-200 bg-orange-50"
+                />
+                <KpiCard 
+                  title="Overdue (>30 days)" 
+                  value={Math.floor(mockCoolers.filter(c => c.status === CoolerStatusEnum.Maintenance).length * 0.4)}
+                  icon={<AlertTriangle className="h-4 w-4" />}
+                  className="border-red-200 bg-red-50"
+                />
+                <KpiCard 
+                  title="Scheduled This Week" 
+                  value={Math.floor(mockCoolers.filter(c => c.status === CoolerStatusEnum.Maintenance).length * 0.6)}
+                  icon={<Calendar className="h-4 w-4" />}
+                  className="border-blue-200 bg-blue-50"
+                />
+              </div>
+
+              {/* Maintenance Table */}
+              <div className="rounded-lg border overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/50 text-muted-foreground">
+                    <tr className="text-left">
+                      <th className="py-2 px-3 font-medium">Cooler ID</th>
+                      <th className="py-2 px-3 font-medium">Type</th>
+                      <th className="py-2 px-3 font-medium">Location</th>
+                      <th className="py-2 px-3 font-medium">Last Service</th>
+                      <th className="py-2 px-3 font-medium">Next Due</th>
+                      <th className="py-2 px-3 font-medium">Priority</th>
+                      <th className="py-2 px-3 font-medium">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {mockCoolers
+                      .filter(cooler => cooler.status === CoolerStatusEnum.Maintenance)
+                      .slice(0, showAllMaintenance ? undefined : 8) // Show all or first 8
+                      .map((cooler, index) => {
+                        const lastServiceDate = cooler.lastServiceDate ? new Date(cooler.lastServiceDate) : new Date(Date.now() - 120 * 24 * 60 * 60 * 1000); // Default to 120 days ago if undefined
+                        const daysSinceService = Math.floor((Date.now() - lastServiceDate.getTime()) / (1000 * 60 * 60 * 24));
+                        const daysOverdue = Math.max(0, daysSinceService - 90); // Assuming 90 days maintenance cycle
+                        const nextDueDate = new Date(lastServiceDate.getTime() + 90 * 24 * 60 * 60 * 1000); // 90 days after last service
+                        
+                        // Add variation to priority based on different factors
+                        let priority = 'Low';
+                        if (daysOverdue > 60) {
+                          priority = 'Critical';
+                        } else if (daysOverdue > 30) {
+                          priority = 'High';
+                        } else if (daysOverdue > 0) {
+                          priority = 'Medium';
+                        } else if (daysSinceService > 75) { // Approaching due date
+                          priority = 'Medium';
+                        }
+                        
+                        // Add some randomization for demonstration
+                        const temperatureIssue = (cooler.temperature && (cooler.temperature < -3 || cooler.temperature > 10)); // Out of optimal range
+                        const humidityIssue = (cooler.humidity && (cooler.humidity < 35 || cooler.humidity > 65)); // Out of optimal range
+                        
+                        // Adjust priority based on environmental conditions
+                        if (temperatureIssue || humidityIssue) {
+                          if (priority === 'Low') priority = 'Medium';
+                          if (priority === 'Medium') priority = 'High';
+                        }
+                        
+                        // Some random variation for demonstration (based on cooler index)
+                        if (index % 7 === 0 && priority !== 'Critical') {
+                          priority = 'High'; // Every 7th cooler gets high priority
+                        }
+                        if (index % 11 === 0 && daysOverdue === 0) {
+                          priority = 'Medium'; // Some units need proactive maintenance
+                        }
+                        
+                        // Determine cooler type based on model
+                        const coolerType = cooler.coolerModel.toLowerCase().includes('double') ? 'Double Door' : 
+                                         cooler.coolerModel.toLowerCase().includes('single') ? 'Single Door' : 
+                                         cooler.coolerModel.toLowerCase().includes('compact') ? 'Compact' : 'Standard';
+                        
+                        const handleScheduleClick = () => {
+                          setSelectedMaintenanceCooler(cooler);
+                          setMaintenanceForm({
+                            scheduledDate: '',
+                            technician: '',
+                            priority: priority,
+                            description: '',
+                            estimatedDuration: priority === 'Critical' ? '8' : priority === 'High' ? '4' : '2'
+                          });
+                          setIsMaintenanceModalOpen(true);
+                        };
+                        
+                        return (
+                          <tr key={cooler._id} className="hover:bg-muted/50 transition-colors">
+                            <td className="py-2 px-3 font-mono font-medium">{cooler._id}</td>
+                            <td className="py-2 px-3">
+                              <span className="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                                {coolerType}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3">{cooler.location.city}, {cooler.location.province}</td>
+                            <td className="py-2 px-3 text-muted-foreground">
+                              {lastServiceDate.toLocaleDateString()}
+                            </td>
+                            <td className="py-2 px-3">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                daysOverdue > 30 ? 'bg-red-100 text-red-800' :
+                                daysOverdue > 0 ? 'bg-orange-100 text-orange-800' :
+                                'bg-green-100 text-green-800'
+                              }`}>
+                                {nextDueDate.toLocaleDateString()}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                priority === 'Critical' ? 'bg-red-600 text-white' :
+                                priority === 'High' ? 'bg-red-100 text-red-800' :
+                                priority === 'Medium' ? 'bg-orange-100 text-orange-800' :
+                                'bg-blue-100 text-blue-800'
+                              }`}>
+                                {priority}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3">
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="h-6 text-xs px-2"
+                                onClick={handleScheduleClick}
+                              >
+                                Schedule
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+
+              {mockCoolers.filter(c => c.status === CoolerStatusEnum.Maintenance).length > 8 && (
+                <div className="text-center">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowAllMaintenance(!showAllMaintenance)}
+                  >
+                    {showAllMaintenance 
+                      ? 'Show Less' 
+                      : `View All ${mockCoolers.filter(c => c.status === CoolerStatusEnum.Maintenance).length} Maintenance Units`
+                    }
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Scheduled Maintenance Section */}
+          <div className="rounded-lg border bg-background p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold">Scheduled Maintenance</h2>
+                <p className="text-sm text-muted-foreground">Upcoming maintenance appointments and assigned technicians</p>
+              </div>
+            </div>
+
+            {scheduledMaintenance.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p className="text-sm">No maintenance scheduled yet</p>
+                <p className="text-xs">Schedule maintenance from the units above to see them here</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Scheduled Maintenance Grid */}
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                  {scheduledMaintenance
+                    .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
+                    .map((scheduled) => {
+                      const scheduledDate = new Date(scheduled.scheduledDate);
+                      const daysUntil = Math.ceil((scheduledDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                      const isToday = daysUntil === 0;
+                      const isPast = daysUntil < 0;
+                      
+                      // Determine cooler type
+                      const coolerType = scheduled.cooler.coolerModel.toLowerCase().includes('double') ? 'Double Door' : 
+                                       scheduled.cooler.coolerModel.toLowerCase().includes('single') ? 'Single Door' : 
+                                       scheduled.cooler.coolerModel.toLowerCase().includes('compact') ? 'Compact' : 'Standard';
+                      
+                      return (
+                        <div key={scheduled.id} className={`p-4 border rounded-lg ${
+                          isPast ? 'bg-red-50 border-red-200' :
+                          isToday ? 'bg-yellow-50 border-yellow-200' :
+                          daysUntil <= 3 ? 'bg-orange-50 border-orange-200' :
+                          'bg-background'
+                        }`}>
+                          <div className="space-y-3">
+                            {/* Header */}
+                            <div className="flex items-center justify-between">
+                              <div className="font-mono text-sm font-semibold">{scheduled.cooler._id}</div>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                scheduled.priority === 'Critical' ? 'bg-red-600 text-white' :
+                                scheduled.priority === 'High' ? 'bg-red-100 text-red-800' :
+                                scheduled.priority === 'Medium' ? 'bg-orange-100 text-orange-800' :
+                                'bg-blue-100 text-blue-800'
+                              }`}>
+                                {scheduled.priority}
+                              </span>
+                            </div>
+                            
+                            {/* Cooler Info */}
+                            <div className="space-y-1">
+                              <div className="text-sm text-muted-foreground">{coolerType}</div>
+                              <div className="text-sm">{scheduled.cooler.location.city}, {scheduled.cooler.location.province}</div>
+                            </div>
+                            
+                            {/* Schedule Info */}
+                            <div className="space-y-2 pt-2 border-t">
+                              <div className="flex items-center gap-2 text-sm">
+                                <Clock className="h-4 w-4 text-muted-foreground" />
+                                <span className={`font-medium ${
+                                  isPast ? 'text-red-600' :
+                                  isToday ? 'text-yellow-600' :
+                                  daysUntil <= 3 ? 'text-orange-600' :
+                                  'text-foreground'
+                                }`}>
+                                  {scheduledDate.toLocaleDateString()} at {scheduledDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                </span>
+                              </div>
+                              
+                              <div className="flex items-center gap-2 text-sm">
+                                <div className="h-4 w-4 rounded-full bg-blue-100 flex items-center justify-center">
+                                  <div className="h-2 w-2 rounded-full bg-blue-600"></div>
+                                </div>
+                                <span>{scheduled.technician.replace('-', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</span>
+                              </div>
+                              
+                              <div className="text-xs text-muted-foreground">
+                                Duration: {scheduled.estimatedDuration}h
+                              </div>
+                            </div>
+                            
+                            {/* Status Badge */}
+                            <div className="pt-2">
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                isPast ? 'bg-red-100 text-red-800' :
+                                isToday ? 'bg-yellow-100 text-yellow-800' :
+                                daysUntil <= 3 ? 'bg-orange-100 text-orange-800' :
+                                'bg-green-100 text-green-800'
+                              }`}>
+                                {isPast ? 'Overdue' :
+                                 isToday ? 'Today' :
+                                 daysUntil <= 3 ? `In ${daysUntil} days` :
+                                 `In ${daysUntil} days`}
+                              </span>
+                            </div>
+                            
+                            {/* Description if provided */}
+                            {scheduled.description && (
+                              <div className="pt-2 border-t">
+                                <div className="text-xs text-muted-foreground mb-1">Notes:</div>
+                                <div className="text-xs">{scheduled.description}</div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+                
+                {scheduledMaintenance.length > 6 && (
+                  <div className="text-center pt-4">
+                    <Button variant="outline" size="sm">
+                      View All {scheduledMaintenance.length} Scheduled Items
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Main Content Split */}
           <div className="grid gap-6 grid-cols-1 xl:grid-cols-12">
             {/* Alerts Feed */}
@@ -607,6 +990,134 @@ export default function AlertsPage() {
           </div>
         </div>
       </SidebarInset>
+      
+      {/* Maintenance Scheduling Modal */}
+      <Dialog open={isMaintenanceModalOpen} onOpenChange={setIsMaintenanceModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Schedule Maintenance</DialogTitle>
+          </DialogHeader>
+          {selectedMaintenanceCooler && (
+            <div className="space-y-4">
+              {/* Cooler Info */}
+              <div className="p-3 bg-muted rounded-lg">
+                <div className="text-sm font-medium">{selectedMaintenanceCooler._id}</div>
+                <div className="text-xs text-muted-foreground">{selectedMaintenanceCooler.coolerModel}</div>
+                <div className="text-xs text-muted-foreground">{selectedMaintenanceCooler.location.city}, {selectedMaintenanceCooler.location.province}</div>
+              </div>
+
+              {/* Form Fields */}
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="scheduledDate" className="text-sm font-medium">Scheduled Date</Label>
+                  <Input
+                    id="scheduledDate"
+                    type="datetime-local"
+                    value={maintenanceForm.scheduledDate}
+                    onChange={(e) => setMaintenanceForm({...maintenanceForm, scheduledDate: e.target.value})}
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="technician" className="text-sm font-medium">Assigned Technician</Label>
+                  <Select value={maintenanceForm.technician} onValueChange={(value) => setMaintenanceForm({...maintenanceForm, technician: value})}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select technician" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="john-smith">John Smith</SelectItem>
+                      <SelectItem value="sarah-johnson">Sarah Johnson</SelectItem>
+                      <SelectItem value="mike-davis">Mike Davis</SelectItem>
+                      <SelectItem value="lisa-chen">Lisa Chen</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="priority" className="text-sm font-medium">Priority</Label>
+                  <Select value={maintenanceForm.priority} onValueChange={(value) => setMaintenanceForm({...maintenanceForm, priority: value})}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Low">Low</SelectItem>
+                      <SelectItem value="Medium">Medium</SelectItem>
+                      <SelectItem value="High">High</SelectItem>
+                      <SelectItem value="Critical">Critical</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="estimatedDuration" className="text-sm font-medium">Estimated Duration (hours)</Label>
+                  <Select value={maintenanceForm.estimatedDuration} onValueChange={(value) => setMaintenanceForm({...maintenanceForm, estimatedDuration: value})}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1 hour</SelectItem>
+                      <SelectItem value="2">2 hours</SelectItem>
+                      <SelectItem value="4">4 hours</SelectItem>
+                      <SelectItem value="8">8 hours (Full day)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="description" className="text-sm font-medium">Maintenance Description</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Describe the maintenance work to be performed..."
+                    value={maintenanceForm.description}
+                    onChange={(e) => setMaintenanceForm({...maintenanceForm, description: e.target.value})}
+                    className="mt-1"
+                    rows={3}
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-4">
+                <Button 
+                  onClick={() => {
+                    // Add to scheduled maintenance list
+                    const newScheduledItem = {
+                      id: Date.now(), // Simple ID for demo
+                      cooler: selectedMaintenanceCooler,
+                      ...maintenanceForm,
+                      scheduledDateTime: new Date(maintenanceForm.scheduledDate),
+                      createdAt: new Date()
+                    };
+                    
+                    setScheduledMaintenance(prev => [...prev, newScheduledItem]);
+                    
+                    console.log('Scheduling maintenance:', {
+                      cooler: selectedMaintenanceCooler._id,
+                      ...maintenanceForm
+                    });
+                    setIsMaintenanceModalOpen(false);
+                    setSelectedMaintenanceCooler(null);
+                  }}
+                  className="flex-1"
+                >
+                  Schedule Maintenance
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsMaintenanceModalOpen(false);
+                    setSelectedMaintenanceCooler(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      
       <MismatchMapModal />
     </SidebarProvider>
   );

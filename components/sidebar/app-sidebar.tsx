@@ -12,6 +12,7 @@ import {
   LayoutDashboardIcon,
   SearchIcon,
   SettingsIcon,
+  BarChart3,
 } from "lucide-react"
 
 import { NavMain } from "@/components/sidebar/nav-main"
@@ -47,9 +48,19 @@ const data = {
     },
     {
       title: "Coolers",
-      url: "/search",
-      icon: SearchIcon,
+      url: "/coolers",
+      icon: LayoutDashboardIcon,
     },
+    {
+      title: "Reports",
+      url: "/reports",
+      icon: BarChart3,
+    },
+    // {
+    //   title: "Search",
+    //   url: "/search",
+    //   icon: SearchIcon,
+    // },
     {
       title: "Geofencing",
       url: "/coolers/geofencing",

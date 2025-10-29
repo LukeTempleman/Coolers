@@ -18,6 +18,30 @@ const locationHistorySchema = z.object({
   timestamp: z.string().datetime().optional(),
 });
 
+// Customer contract schema
+const customerContractSchema = z.object({
+  contractNumber: z.string(),
+  customerName: z.string(),
+  customerEmail: z.string().email(),
+  customerPhone: z.string(),
+  contractStartDate: z.string().datetime(),
+  contractEndDate: z.string().datetime(),
+  monthlyFee: z.number(),
+  depositAmount: z.number(),
+  contractStatus: z.enum(['Active', 'Pending', 'Expired', 'Cancelled']),
+  serviceLevel: z.enum(['Basic', 'Standard', 'Premium']),
+  billingAddress: z.object({
+    street: z.string(),
+    city: z.string(),
+    province: z.string(),
+    postalCode: z.string(),
+    country: z.string(),
+  }),
+  paymentMethod: z.enum(['Credit Card', 'Bank Transfer', 'Cash', 'Debit Order']),
+  lastPaymentDate: z.string().datetime().optional(),
+  nextPaymentDate: z.string().datetime().optional(),
+});
+
 // Cooler
 export const coolerSchema = z.object({
   _id: objectId.optional(),
@@ -34,6 +58,7 @@ export const coolerSchema = z.object({
   isActive: z.boolean().default(true),
   lastNotification: z.string().datetime().optional(),
   locationHistory: z.array(locationHistorySchema).optional(),
+  customerContract: customerContractSchema.optional(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
 });
