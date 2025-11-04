@@ -11,24 +11,21 @@ import {
   MapPin,
   DollarSign,
   Activity,
-  Clock,
   Building,
   BarChart3,
-  Info,
-  MessageCircle,
-  Send,
-  Bot,
-  HelpCircle
+  Info
 } from 'lucide-react';
 import { AppSidebar } from '@/components/sidebar/app-sidebar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { SiteHeader } from '@/components/site-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer } from 'recharts';
+// import { Button } from '@/components/ui/button';
+// import { Input } from '@/components/ui/input';
+// import { ScrollArea } from '@/components/ui/scroll-area';
 
 // Custom KPI Card with Tooltip
 const KpiCardWithTooltip = ({ title, value, icon, subtitle, className, tooltip }: {
@@ -62,148 +59,7 @@ const KpiCardWithTooltip = ({ title, value, icon, subtitle, className, tooltip }
 );
 
 export default function ReportsPage() {
-  const scrollAreaRef = React.useRef<HTMLDivElement>(null);
-  const messagesEndRef = React.useRef<HTMLDivElement>(null);
-  const [chatMessages, setChatMessages] = React.useState<Array<{
-    id: number;
-    type: 'user' | 'bot';
-    content: string;
-    timestamp: Date;
-  }>>([
-    {
-      id: 1,
-      type: 'bot',
-      content: 'Hello! I\'m your AI assistant for cooler analytics. I can help you understand your reports and provide insights about your cooler fleet. Ask me anything!',
-      timestamp: new Date()
-    }
-  ]);
-  const [chatInput, setChatInput] = React.useState('');
-  const [isTyping, setIsTyping] = React.useState(false);
-
-  // Predefined questions and answers
-  const predefinedQA = {
-    "What's our current deployment rate?": `Your current deployment rate is ${((mockCoolers.filter(c => c.status === CoolerStatusEnum.Active).length / mockCoolers.length) * 100).toFixed(1)}%. You have ${mockCoolers.filter(c => c.status === CoolerStatusEnum.Active).length} active coolers out of ${mockCoolers.length} total units.`,
-    
-    "Which provinces have the most coolers?": () => {
-      const provinces = mockCoolers.reduce((acc, cooler) => {
-        acc[cooler.location.province] = (acc[cooler.location.province] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-      const sorted = Object.entries(provinces).sort(([,a], [,b]) => b - a);
-      const top3 = sorted.slice(0, 3);
-      return `The top 3 provinces by cooler count are: ${top3.map(([province, count]) => `${province} (${count} coolers)`).join(', ')}.`;
-    },
-    
-    "How many coolers need maintenance?": `Currently, ${mockCoolers.filter(c => c.status === CoolerStatusEnum.Maintenance).length} coolers are under maintenance, and ${mockCoolers.filter(c => c.status === CoolerStatusEnum.Alert).length} coolers have alerts that may require attention.`,
-    
-    "What's our monthly revenue estimate?": () => {
-      const activeContracts = mockCoolers.filter(c => c.customerContract?.contractStatus === 'Active');
-      const monthlyRevenue = activeContracts.reduce((sum, cooler) => sum + (cooler.customerContract?.monthlyFee || 0), 0);
-      return `Based on active contracts, your estimated monthly revenue is R${monthlyRevenue.toLocaleString()}. This comes from ${activeContracts.length} active contracts.`;
-    },
-    
-    "What's the average temperature across all coolers?": () => {
-      const coolersWithTemp = mockCoolers.filter(c => c.temperature !== undefined);
-      const avgTemp = coolersWithTemp.reduce((sum, cooler) => sum + (cooler.temperature || 0), 0) / coolersWithTemp.length;
-      return `The average temperature across all coolers is ${avgTemp.toFixed(1)}°C. The recommended range is 2-8°C for optimal performance.`;
-    },
-    
-    "How are our coolers distributed geographically?": () => {
-      const cities = mockCoolers.reduce((acc, cooler) => {
-        acc[cooler.location.city] = (acc[cooler.location.city] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-      const cityCount = Object.keys(cities).length;
-      const provinceCount = new Set(mockCoolers.map(c => c.location.province)).size;
-      return `Your coolers are deployed across ${cityCount} cities in ${provinceCount} provinces, providing excellent geographic coverage across South Africa.`;
-    }
-  };
-
-  const handleSendMessage = () => {
-    if (!chatInput.trim()) return;
-
-    const userMessage = {
-      id: Date.now(),
-      type: 'user' as const,
-      content: chatInput,
-      timestamp: new Date()
-    };
-
-    setChatMessages(prev => [...prev, userMessage]);
-    setIsTyping(true);
-
-    // Generate bot response
-    setTimeout(() => {
-      let botResponse = '';
-      
-      // Check for predefined questions
-      const matchedQuestion = Object.keys(predefinedQA).find(q => 
-        chatInput.toLowerCase().includes(q.toLowerCase().replace(/[?]/g, '').substring(0, 10))
-      );
-
-      if (matchedQuestion) {
-        const answer = predefinedQA[matchedQuestion as keyof typeof predefinedQA];
-        botResponse = typeof answer === 'function' ? answer() : answer;
-      } else if (chatInput.toLowerCase().includes('help') || chatInput.toLowerCase().includes('what can you do')) {
-        botResponse = 'I can help you with cooler analytics! Try asking about deployment rates, geographical distribution, maintenance status, revenue estimates, or temperature monitoring. Use the quick questions below for instant insights.';
-      } else if (chatInput.toLowerCase().includes('revenue') || chatInput.toLowerCase().includes('money') || chatInput.toLowerCase().includes('profit')) {
-        const activeContracts = mockCoolers.filter(c => c.customerContract?.contractStatus === 'Active');
-        const monthlyRevenue = activeContracts.reduce((sum, cooler) => sum + (cooler.customerContract?.monthlyFee || 0), 0);
-        botResponse = `Your financial performance looks strong! Monthly revenue: R${monthlyRevenue.toLocaleString()}, active contracts: ${activeContracts.length}, and an estimated annual revenue of R${(monthlyRevenue * 12).toLocaleString()}.`;
-      } else if (chatInput.toLowerCase().includes('temperature') || chatInput.toLowerCase().includes('temp')) {
-        const coolersWithTemp = mockCoolers.filter(c => c.temperature !== undefined);
-        const avgTemp = coolersWithTemp.reduce((sum, cooler) => sum + (cooler.temperature || 0), 0) / coolersWithTemp.length;
-        const alertCoolers = mockCoolers.filter(c => c.temperature && (c.temperature > 8 || c.temperature < 2));
-        botResponse = `Temperature analysis: Average ${avgTemp.toFixed(1)}°C across all coolers. ${alertCoolers.length} coolers are outside the optimal 2-8°C range and may need attention.`;
-      } else if (chatInput.toLowerCase().includes('maintenance') || chatInput.toLowerCase().includes('service')) {
-        const maintenanceCoolers = mockCoolers.filter(c => c.status === CoolerStatusEnum.Maintenance);
-        const alertCoolers = mockCoolers.filter(c => c.status === CoolerStatusEnum.Alert);
-        botResponse = `Maintenance overview: ${maintenanceCoolers.length} coolers currently under maintenance, ${alertCoolers.length} with alerts. Consider scheduling preventive maintenance for optimal performance.`;
-      } else if (chatInput.toLowerCase().includes('location') || chatInput.toLowerCase().includes('province') || chatInput.toLowerCase().includes('city')) {
-        const provinces = new Set(mockCoolers.map(c => c.location.province)).size;
-        const cities = new Set(mockCoolers.map(c => c.location.city)).size;
-        botResponse = `Geographic distribution: ${cities} cities across ${provinces} provinces. Your largest deployments are in major metropolitan areas with strong market presence.`;
-      } else {
-        botResponse = 'I understand you\'re asking about cooler analytics. Could you be more specific? I can help with deployment rates, maintenance status, revenue analysis, temperature monitoring, or geographic distribution. Try one of the quick questions below!';
-      }
-
-      const botMessage = {
-        id: Date.now() + 1,
-        type: 'bot' as const,
-        content: botResponse,
-        timestamp: new Date()
-      };
-
-      setIsTyping(false);
-      setChatMessages(prev => [...prev, botMessage]);
-    }, 1000);
-
-    setChatInput('');
-  };
-
-  const quickQuestions = Object.keys(predefinedQA);
-
-  // Auto-scroll to bottom when new messages are added
-  React.useEffect(() => {
-    const scrollToBottom = () => {
-      // Method 1: Scroll using the messagesEndRef
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-      }
-      
-      // Method 2: Fallback to ScrollArea approach
-      if (scrollAreaRef.current) {
-        const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-        if (scrollContainer) {
-          setTimeout(() => {
-            scrollContainer.scrollTop = scrollContainer.scrollHeight;
-          }, 100);
-        }
-      }
-    };
-    
-    scrollToBottom();
-  }, [chatMessages, isTyping]);
+  // AI Assistant temporarily disabled (UI and state removed)
   // Calculate comprehensive KPIs from mock data
   const kpis = useMemo(() => {
     const totalCoolers = mockCoolers.length;
@@ -256,6 +112,28 @@ export default function ReportsPage() {
       costSavings: baseRevenue * 0.15 // 15% cost savings
     };
   }, [kpis.activeCoolers]);
+
+  // Generate ROI over time data (growth over previous year baseline)
+  const roiChartData = useMemo(() => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const averageSales = 45000; // Average expected sales per cooler per month in Rands
+    
+    return months.map((month, index) => {
+      // Previous year baseline (2024): varied performance, some below average
+      const previousYearBase = averageSales * (0.85 + Math.sin(index * 0.6) * 0.1);
+      
+      // Current year (2025): improved performance with growth trend
+      const currentYearBase = averageSales * (1.0 + (index * 0.02));
+      const currentYearVariance = Math.sin(index * 0.5) * 2000;
+      
+      return {
+        month,
+        averageLine: averageSales,
+        previousYear: Math.round(previousYearBase),
+        currentYear: Math.round(currentYearBase + currentYearVariance),
+      };
+    });
+  }, []);
 
   return (
     <SidebarProvider>
@@ -328,26 +206,6 @@ export default function ReportsPage() {
                   tooltip="Average return on investment calculated across all cooler deployments"
                 />
                 <KpiCardWithTooltip
-                  title="Avg Service Time"
-                  value={`${performanceMetrics.avgServiceTime}h`}
-                  icon={<Clock size={20} />}
-                  subtitle="Maintenance efficiency"
-                  className="border-cyan-200 bg-cyan-50"
-                  tooltip="Average time required to complete maintenance and service tasks"
-                />
-              </div>
-
-              {/* Operational Metrics */}
-              <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
-                <KpiCardWithTooltip
-                  title="Under Maintenance"
-                  value={kpis.maintenanceCoolers}
-                  icon={<BarChart3 size={20} />}
-                  subtitle="Service in progress"
-                  className="border-violet-200 bg-violet-50"
-                  tooltip="Number of coolers currently undergoing maintenance or repair work"
-                />
-                <KpiCardWithTooltip
                   title="Idle Coolers"
                   value={kpis.idleCoolers}
                   icon={<Activity size={20} />}
@@ -356,7 +214,6 @@ export default function ReportsPage() {
                   tooltip="Coolers that are available but not currently assigned or in active use"
                 />
               </div>
-
             {/* Detailed Analytics Cards */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
               
@@ -428,54 +285,7 @@ export default function ReportsPage() {
                 </CardContent>
               </Card>
 
-              {/* Status Overview */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Activity className="w-5 h-5" />
-                    Cooler Status Overview
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                        Active
-                      </span>
-                      <span className="text-sm">{kpis.activeCoolers} units</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-                        Assigned
-                      </span>
-                      <span className="text-sm">{kpis.assignedCoolers} units</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                        Alert
-                      </span>
-                      <span className="text-sm">{kpis.alertCoolers} units</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-                        Maintenance
-                      </span>
-                      <span className="text-sm">{kpis.maintenanceCoolers} units</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-gray-500"></div>
-                        Idle
-                      </span>
-                      <span className="text-sm">{kpis.idleCoolers} units</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Status Overview (temporarily removed) */}
 
               {/* Financial Summary */}
               <Card>
@@ -521,6 +331,106 @@ export default function ReportsPage() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* ROI Over Time Chart - Full Width */}
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5" />
+                  Sales Performance: Year-over-Year Growth
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Comparing current year (2025) vs. previous year (2024) baseline against average sales target
+                </p>
+              </CardHeader>
+              <CardContent className="pl-2 pr-2">
+                <ChartContainer
+                  config={{
+                    averageLine: {
+                      label: "Average Target",
+                      color: "hsl(var(--muted-foreground))",
+                    },
+                    previousYear: {
+                      label: "2024 Baseline",
+                      color: "hsl(var(--destructive))",
+                    },
+                    currentYear: {
+                      label: "2025 Performance",
+                      color: "hsl(var(--primary))",
+                    },
+                  }}
+                  className="h-[500px]"
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={roiChartData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="month" 
+                        className="text-xs"
+                      />
+                      <YAxis 
+                        className="text-xs"
+                        tickFormatter={(value) => `R${(value / 1000).toFixed(0)}K`}
+                      />
+                      <ChartTooltip 
+                        content={<ChartTooltipContent />}
+                        formatter={(value: number) => [`R${value.toLocaleString()}`, '']}
+                      />
+                      <Legend />
+                      <Line 
+                        type="monotone" 
+                        dataKey="averageLine" 
+                        stroke="hsl(var(--muted-foreground))" 
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        dot={false}
+                        name="Average Target"
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="previousYear" 
+                        stroke="hsl(var(--destructive))" 
+                        strokeWidth={2}
+                        dot={{ fill: 'hsl(var(--destructive))' }}
+                        name="2024 Baseline"
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="currentYear" 
+                        stroke="hsl(var(--primary))" 
+                        strokeWidth={2}
+                        dot={{ fill: 'hsl(var(--primary))' }}
+                        name="2025 Performance"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+                <div className="mt-4 pt-4 border-t">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <div className="text-muted-foreground">2024 Average</div>
+                      <div className="font-semibold text-destructive">R39.8K</div>
+                      <div className="text-xs text-muted-foreground">11.6% below target</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">2025 Average</div>
+                      <div className="font-semibold text-primary">R49.5K</div>
+                      <div className="text-xs text-green-600">10.0% above target</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">YoY Growth</div>
+                      <div className="font-semibold text-green-600">+24.4%</div>
+                      <div className="text-xs text-muted-foreground">R9.7K increase</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Coolers Below Avg</div>
+                      <div className="font-semibold text-amber-600">~10K units</div>
+                      <div className="text-xs text-muted-foreground">Opportunity area</div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Summary Insights */}
             <Card className="mt-6">
@@ -571,113 +481,12 @@ export default function ReportsPage() {
               </CardContent>
             </Card>
 
-            {/* AI Analytics Assistant */}
+            {/* AI Analytics Assistant (temporarily disabled) */}
+            {/**
             <Card className="mt-6">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bot className="w-5 h-5" />
-                  AI Analytics Assistant
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="max-h-[calc(100vh-300px)] overflow-hidden">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-                  {/* Quick Questions */}
-                  <div className="lg:col-span-1">
-                    <h4 className="font-semibold mb-3 flex items-center gap-2">
-                      <HelpCircle className="w-4 h-4" />
-                      Quick Questions
-                    </h4>
-                    <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                      {quickQuestions.map((question, index) => (
-                        <Button
-                          key={index}
-                          variant="outline"
-                          size="sm"
-                          className="w-full text-left justify-start h-auto p-3 whitespace-normal"
-                          onClick={() => {
-                            setChatInput(question);
-                            setTimeout(handleSendMessage, 100);
-                          }}
-                        >
-                          {question}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Chat Interface */}
-                  <div className="lg:col-span-2">
-                    <div className="border rounded-lg flex flex-col h-[600px] max-h-[calc(100vh-200px)]">
-                      {/* Chat Header */}
-                      <div className="p-4 border-b bg-muted/50 flex items-center gap-2 shrink-0">
-                        <MessageCircle className="w-4 h-4" />
-                        <span className="font-medium">Chat with AI Assistant</span>
-                      </div>
-
-                      {/* Messages */}
-                      <div className="flex-1 overflow-hidden">
-                        <ScrollArea ref={scrollAreaRef} className="h-full p-4">
-                          <div className="space-y-4 pb-4">
-                            {chatMessages.map((message) => (
-                              <div
-                                key={message.id}
-                                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                              >
-                                <div
-                                  className={`max-w-[80%] rounded-lg p-3 break-words ${
-                                    message.type === 'user'
-                                      ? 'bg-primary text-primary-foreground'
-                                      : 'bg-muted'
-                                  }`}
-                                >
-                                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                                  <p className="text-xs opacity-70 mt-1">
-                                    {message.timestamp.toLocaleTimeString()}
-                                  </p>
-                                </div>
-                              </div>
-                            ))}
-                            {isTyping && (
-                              <div className="flex justify-start">
-                                <div className="bg-muted rounded-lg p-3 max-w-[80%]">
-                                  <div className="flex items-center space-x-1">
-                                    <div className="flex space-x-1">
-                                      <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
-                                      <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                                      <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                                    </div>
-                                    <span className="text-xs text-muted-foreground ml-2">AI is thinking...</span>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                            {/* Invisible element to scroll to */}
-                            <div ref={messagesEndRef} />
-                          </div>
-                        </ScrollArea>
-                      </div>
-
-                      {/* Input Area */}
-                      <div className="p-4 border-t shrink-0">
-                        <div className="flex gap-2">
-                          <Input
-                            value={chatInput}
-                            onChange={(e) => setChatInput(e.target.value)}
-                            placeholder="Ask about your cooler analytics..."
-                            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                            className="flex-1"
-                            disabled={isTyping}
-                          />
-                          <Button onClick={handleSendMessage} size="sm" disabled={isTyping || !chatInput.trim()}>
-                            <Send className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
+              ... AI section commented out ...
             </Card>
+            **/}
             </TooltipProvider>
           </div>
         </div>

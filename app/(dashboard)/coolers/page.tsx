@@ -1,11 +1,11 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { mockCoolers } from "@/app/lib/mockCoolers";
 import dynamic from 'next/dynamic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { KpiCard } from '@/components/dashboard/kpi/KpiCard';
 import { CoolerStatusEnum } from '@/app/lib/constants';
-import { User, Cpu, AlertTriangle, CheckCircle, Filter, Search } from 'lucide-react';
+import { User, Cpu, AlertTriangle, CheckCircle, Filter, Search, Upload, X, FileText } from 'lucide-react';
 import { AppSidebar } from '@/components/sidebar/app-sidebar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { SiteHeader } from '@/components/site-header';
@@ -14,7 +14,6 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 
 const TABS = ["Map View", "List View"];
 
@@ -51,6 +50,10 @@ export default function CoolersPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [coolerTypeFilter, setCoolerTypeFilter] = useState<string>("all");
   const [searchInput, setSearchInput] = useState("");
+  
+  // PDF upload state
+  const [uploadedPdf, setUploadedPdf] = useState<{ file: File; url: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   console.log('CoolersPage - tab:', tab);
   console.log('CoolersPage - mockCoolers count:', mockCoolers.length);
@@ -308,13 +311,11 @@ export default function CoolersPage() {
                 </DialogHeader>
                 {selectedCooler && (
                   <Tabs defaultValue="location" className="w-full flex-1 flex flex-col overflow-hidden">
-                    <TabsList className="grid w-full grid-cols-3 shrink-0">
+                    <TabsList className="grid w-full grid-cols-2 shrink-0">
                       <TabsTrigger value="location">Location & Details</TabsTrigger>
-                      <TabsTrigger value="contract" disabled={!selectedCooler.customerContract}>
+                      <TabsTrigger value="contract">
                         Customer Contract
-                        {!selectedCooler.customerContract && <span className="ml-1 text-xs">(N/A)</span>}
                       </TabsTrigger>
-                      <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
                     </TabsList>
                     
                     <TabsContent value="location" className="flex-1 mt-4 overflow-hidden">
@@ -363,6 +364,19 @@ export default function CoolersPage() {
                               {selectedCooler.location.coordinates[1].toFixed(4)}, {selectedCooler.location.coordinates[0].toFixed(4)}
                             </p>
                           </div>
+                          <div>
+                            <span className="font-semibold">Last Service Date:</span> 
+                            <p className="text-sm">{selectedCooler.lastServiceDate ? new Date(selectedCooler.lastServiceDate).toLocaleDateString() : 'N/A'}</p>
+                          </div>
+                          <div>
+                            <span className="font-semibold">Next Service Due:</span> 
+                            <p className="text-sm text-amber-600 font-medium">
+                              {selectedCooler.lastServiceDate 
+                                ? new Date(new Date(selectedCooler.lastServiceDate).getTime() + 90 * 24 * 60 * 60 * 1000).toLocaleDateString()
+                                : 'Not scheduled'
+                              }
+                            </p>
+                          </div>
                         </div>
                         <div className="border rounded bg-muted p-2 flex-1 min-h-[500px] overflow-hidden">
                           <DynamicCoolerLocationMap coolers={[selectedCooler]} />
@@ -371,260 +385,113 @@ export default function CoolersPage() {
                     </TabsContent>
                     
                     <TabsContent value="contract" className="flex-1 mt-4 overflow-auto">
-                      {selectedCooler.customerContract ? (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full p-2">
-                          {/* Customer Information */}
-                          <Card className="flex flex-col">
-                            <CardHeader className="pb-3">
-                              <CardTitle className="text-lg">Customer Information</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3 flex-1">
-                              <div>
-                                <span className="font-semibold text-sm">Name:</span>
-                                <p className="text-sm mt-1">{selectedCooler.customerContract.customerName}</p>
-                              </div>
-                              <div>
-                                <span className="font-semibold text-sm">Email:</span>
-                                <p className="text-sm mt-1 break-all">{selectedCooler.customerContract.customerEmail}</p>
-                              </div>
-                              <div>
-                                <span className="font-semibold text-sm">Phone:</span>
-                                <p className="text-sm mt-1">{selectedCooler.customerContract.customerPhone}</p>
-                              </div>
-                              <div>
-                                <span className="font-semibold text-sm">Billing Address:</span>
-                                <p className="text-sm mt-1 leading-relaxed">
-                                  {selectedCooler.customerContract.billingAddress.street}<br />
-                                  {selectedCooler.customerContract.billingAddress.city}, {selectedCooler.customerContract.billingAddress.province}<br />
-                                  {selectedCooler.customerContract.billingAddress.postalCode}<br />
-                                  {selectedCooler.customerContract.billingAddress.country}
-                                </p>
-                              </div>
-                            </CardContent>
-                          </Card>
-
-                          {/* Contract Details */}
-                          <Card className="flex flex-col">
-                            <CardHeader className="pb-3">
-                              <CardTitle className="text-lg">Contract Details</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3 flex-1">
-                              <div>
-                                <span className="font-semibold text-sm">Contract Number:</span>
-                                <p className="text-sm font-mono mt-1">{selectedCooler.customerContract.contractNumber}</p>
-                              </div>
-                              <div>
-                                <span className="font-semibold text-sm">Status:</span>
-                                <div className="mt-1">
-                                  <Badge variant={selectedCooler.customerContract.contractStatus === 'Active' ? 'default' : 'secondary'}>
-                                    {selectedCooler.customerContract.contractStatus}
-                                  </Badge>
-                                </div>
-                              </div>
-                              <div>
-                                <span className="font-semibold text-sm">Service Level:</span>
-                                <div className="mt-1">
-                                  <Badge variant="outline">
-                                    {selectedCooler.customerContract.serviceLevel}
-                                  </Badge>
-                                </div>
-                              </div>
-                              <div>
-                                <span className="font-semibold text-sm">Contract Period:</span>
-                                <p className="text-sm mt-1">
-                                  {new Date(selectedCooler.customerContract.contractStartDate).toLocaleDateString()} - {new Date(selectedCooler.customerContract.contractEndDate).toLocaleDateString()}
-                                </p>
-                              </div>
-                              <div>
-                                <span className="font-semibold text-sm">Monthly Fee:</span>
-                                <p className="text-sm font-semibold text-green-600 mt-1">R{selectedCooler.customerContract.monthlyFee.toLocaleString()}</p>
-                              </div>
-                              <div>
-                                <span className="font-semibold text-sm">Deposit Amount:</span>
-                                <p className="text-sm mt-1">R{selectedCooler.customerContract.depositAmount.toLocaleString()}</p>
-                              </div>
-                            </CardContent>
-                          </Card>
-
-                          {/* Payment Information */}
-                          <Card className="flex flex-col">
-                            <CardHeader className="pb-3">
-                              <CardTitle className="text-lg">Payment Information</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3 flex-1">
-                              <div>
-                                <span className="font-semibold text-sm">Payment Method:</span>
-                                <p className="text-sm mt-1">{selectedCooler.customerContract.paymentMethod}</p>
-                              </div>
-                              {selectedCooler.customerContract.lastPaymentDate && (
-                                <div>
-                                  <span className="font-semibold text-sm">Last Payment:</span>
-                                  <p className="text-sm mt-1">{new Date(selectedCooler.customerContract.lastPaymentDate).toLocaleDateString()}</p>
-                                </div>
-                              )}
-                              {selectedCooler.customerContract.nextPaymentDate && (
-                                <div>
-                                  <span className="font-semibold text-sm">Next Payment Due:</span>
-                                  <p className="text-sm mt-1 font-medium text-amber-600">{new Date(selectedCooler.customerContract.nextPaymentDate).toLocaleDateString()}</p>
-                                </div>
-                              )}
-                            </CardContent>
-                          </Card>
-
-                          {/* Contract Actions */}
-                          <Card className="flex flex-col">
-                            <CardHeader className="pb-3">
-                              <CardTitle className="text-lg">Contract Actions</CardTitle>
-                            </CardHeader>
-                            <CardContent className="flex-1">
-                              <div className="grid grid-cols-1 gap-3">
-                                <Button variant="outline" size="sm" className="h-10">
-                                  Download Contract PDF
-                                </Button>
-                                <Button variant="outline" size="sm" className="h-10">
-                                  Send Contract Copy
-                                </Button>
-                                <Button variant="outline" size="sm" className="h-10">
-                                  Payment History
-                                </Button>
-                                <Button variant="outline" size="sm" className="h-10">
-                                  Modify Contract
-                                </Button>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center h-full">
-                          <div className="text-center">
-                            <p className="text-muted-foreground">No customer contract available for this cooler.</p>
-                            <p className="text-sm text-muted-foreground mt-2">
-                              This cooler may be unassigned or awaiting contract setup.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </TabsContent>
-                    
-                    <TabsContent value="maintenance" className="flex-1 mt-4 overflow-auto">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full p-2">
-                        <Card className="flex flex-col">
-                          <CardHeader className="pb-3">
-                            <CardTitle className="text-lg">Maintenance History</CardTitle>
-                          </CardHeader>
-                          <CardContent className="space-y-3 flex-1">
-                            <div>
-                              <span className="font-semibold text-sm">Last Service:</span> 
-                              <p className="text-sm mt-1">{selectedCooler.lastServiceDate ? new Date(selectedCooler.lastServiceDate).toLocaleDateString() : 'N/A'}</p>
-                            </div>
-                            <div>
-                              <span className="font-semibold text-sm">Humidity:</span> 
-                              <p className="text-sm mt-1">{selectedCooler.humidity}%</p>
-                            </div>
-                            <div>
-                              <span className="font-semibold text-sm">Current Temperature:</span> 
-                              <p className="text-sm mt-1">{selectedCooler.temperature}°C</p>
-                            </div>
-                            <div>
-                              <span className="font-semibold text-sm">Service Status:</span> 
-                              <div className="mt-1">
-                                <Badge variant={selectedCooler.status === CoolerStatusEnum.Maintenance ? 'destructive' : 'default'}>
-                                  {selectedCooler.status === CoolerStatusEnum.Maintenance ? 'Needs Maintenance' : 'Operational'}
-                                </Badge>
-                              </div>
-                            </div>
-                            <div>
-                              <span className="font-semibold text-sm">Next Scheduled Service:</span> 
-                              <p className="text-sm mt-1 text-amber-600 font-medium">
-                                {selectedCooler.lastServiceDate 
-                                  ? new Date(new Date(selectedCooler.lastServiceDate).getTime() + 90 * 24 * 60 * 60 * 1000).toLocaleDateString()
-                                  : 'Not scheduled'
-                                }
-                              </p>
-                            </div>
-                          </CardContent>
-                        </Card>
-                        
-                        <Card className="flex flex-col">
-                          <CardHeader className="pb-3">
-                            <CardTitle className="text-lg">Schedule Maintenance</CardTitle>
+                      <div className="h-full flex flex-col p-2">
+                        <Card className="flex-1">
+                          <CardHeader>
+                            <CardTitle className="text-lg">Customer Contract PDF</CardTitle>
+                            <CardDescription>
+                              Upload and view the customer contract document
+                            </CardDescription>
                           </CardHeader>
                           <CardContent className="flex-1">
-                            <div className="space-y-3">
-                              <Button variant="outline" size="sm" className="w-full h-10">
-                                Schedule Routine Service
-                              </Button>
-                              <Button variant="outline" size="sm" className="w-full h-10">
-                                Request Emergency Service
-                              </Button>
-                              <Button variant="outline" size="sm" className="w-full h-10">
-                                View Service Reports
-                              </Button>
-                              <Button variant="outline" size="sm" className="w-full h-10">
-                                Download Maintenance Log
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-
-                        {/* Service History */}
-                        <Card className="flex flex-col lg:col-span-2">
-                          <CardHeader className="pb-3">
-                            <CardTitle className="text-lg">Recent Service History</CardTitle>
-                          </CardHeader>
-                          <CardContent className="flex-1">
-                            <div className="space-y-3">
-                              <div className="border rounded p-3 bg-muted/30">
-                                <div className="flex justify-between items-start mb-2">
-                                  <span className="font-semibold text-sm">Routine Maintenance</span>
-                                  <Badge variant="outline">Completed</Badge>
+                            {!uploadedPdf ? (
+                              <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg bg-muted/10 h-full min-h-[400px]">
+                                <input
+                                  ref={fileInputRef}
+                                  type="file"
+                                  accept="application/pdf"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file && file.type === 'application/pdf') {
+                                      const url = URL.createObjectURL(file);
+                                      setUploadedPdf({ file, url });
+                                    } else if (file) {
+                                      alert('Please upload a PDF file');
+                                    }
+                                  }}
+                                  className="hidden"
+                                />
+                                <div className="text-center">
+                                  <Upload className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                                  <h3 className="text-lg font-semibold mb-2">Upload Contract PDF</h3>
+                                  <p className="text-sm text-muted-foreground mb-6 max-w-sm">
+                                    Click the button below to select a PDF file from your device
+                                  </p>
+                                  <Button 
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="gap-2"
+                                  >
+                                    <Upload className="w-4 h-4" />
+                                    Choose PDF File
+                                  </Button>
+                                  <p className="text-xs text-muted-foreground mt-4">
+                                    Supported format: PDF • Max size: 10MB
+                                  </p>
                                 </div>
-                                <p className="text-xs text-muted-foreground">
-                                  Date: {selectedCooler.lastServiceDate ? new Date(selectedCooler.lastServiceDate).toLocaleDateString() : 'N/A'}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Technician: John Smith | Duration: 2.5 hours
-                                </p>
-                                <p className="text-sm mt-2">
-                                  Standard cleaning, temperature calibration, and component inspection completed successfully.
-                                </p>
                               </div>
-                              
-                              <div className="border rounded p-3 bg-muted/30">
-                                <div className="flex justify-between items-start mb-2">
-                                  <span className="font-semibold text-sm">Component Replacement</span>
-                                  <Badge variant="outline">Completed</Badge>
+                            ) : (
+                              <div className="flex flex-col h-full min-h-[600px]">
+                                <div className="flex items-center justify-between mb-4 p-3 bg-muted rounded-lg">
+                                  <div className="flex items-center gap-3">
+                                    <FileText className="w-5 h-5 text-primary" />
+                                    <div>
+                                      <p className="font-medium text-sm">{uploadedPdf.file.name}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {(uploadedPdf.file.size / 1024 / 1024).toFixed(2)} MB
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => fileInputRef.current?.click()}
+                                      className="gap-2"
+                                    >
+                                      <Upload className="w-4 h-4" />
+                                      Replace
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        URL.revokeObjectURL(uploadedPdf.url);
+                                        setUploadedPdf(null);
+                                      }}
+                                      className="gap-2"
+                                    >
+                                      <X className="w-4 h-4" />
+                                      Remove
+                                    </Button>
+                                  </div>
                                 </div>
-                                <p className="text-xs text-muted-foreground">
-                                  Date: {selectedCooler.lastServiceDate 
-                                    ? new Date(new Date(selectedCooler.lastServiceDate).getTime() - 30 * 24 * 60 * 60 * 1000).toLocaleDateString()
-                                    : 'N/A'
-                                  }
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Technician: Sarah Johnson | Duration: 1.5 hours
-                                </p>
-                                <p className="text-sm mt-2">
-                                  Replaced faulty temperature sensor. System now operating within normal parameters.
-                                </p>
-                              </div>
-
-                              <div className="border rounded p-3 bg-muted/30">
-                                <div className="flex justify-between items-start mb-2">
-                                  <span className="font-semibold text-sm">Installation Check</span>
-                                  <Badge variant="outline">Completed</Badge>
+                                <div className="flex-1 border rounded-lg overflow-hidden bg-muted/20">
+                                  <iframe
+                                    src={uploadedPdf.url}
+                                    className="w-full h-full min-h-[500px]"
+                                    title="Contract PDF"
+                                  />
                                 </div>
-                                <p className="text-xs text-muted-foreground">
-                                  Date: {selectedCooler.createdAt ? new Date(selectedCooler.createdAt).toLocaleDateString() : 'N/A'}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Technician: Mike Wilson | Duration: 3 hours
-                                </p>
-                                <p className="text-sm mt-2">
-                                  Initial installation and setup completed. All systems tested and operational.
-                                </p>
+                                <input
+                                  ref={fileInputRef}
+                                  type="file"
+                                  accept="application/pdf"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file && file.type === 'application/pdf') {
+                                      if (uploadedPdf) {
+                                        URL.revokeObjectURL(uploadedPdf.url);
+                                      }
+                                      const url = URL.createObjectURL(file);
+                                      setUploadedPdf({ file, url });
+                                    } else if (file) {
+                                      alert('Please upload a PDF file');
+                                    }
+                                  }}
+                                  className="hidden"
+                                />
                               </div>
-                            </div>
+                            )}
                           </CardContent>
                         </Card>
                       </div>
